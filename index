@@ -1,1 +1,715 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Simulador de ROI - Numus</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        :root {
+            --primary: #0A192F;
+            --accent: #00E676;
+            --bg-color: #F4F7FB;
+            --card-bg: #FFFFFF;
+            --text-dark: #1E293B;
+            --text-muted: #64748B;
+            --border: #E2E8F0;
+            --numus-color: #0F766E;
+            --numus-bg: #E6F4F1;
+            --banco-color: #BE123C;
+            --banco-bg: #FFE4E6;
+            --tooltip-bg: #1E293B;
+            --alert-bg: #FEF08A;
+            --alert-text: #854D0E;
+            --optional-color: #7C3AED;
+            --optional-bg: #EDE9FE;
+        }
 
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; }
+
+        body { background-color: var(--bg-color); color: var(--text-dark); padding: 20px; font-size: 13px; }
+
+        .container { max-width: 1400px; margin: 0 auto; background: var(--card-bg); border-radius: 12px; box-shadow: 0 4px 25px rgba(0,0,0,0.06); overflow: hidden; display: flex; flex-direction: column; }
+
+        .header { padding: 15px 20px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; background-color: #fff; flex-wrap: wrap; gap: 15px; }
+        .header img { height: 35px; }
+        .header-titles { text-align: right; }
+        .header h1 { font-size: 18px; color: var(--primary); margin-bottom: 4px; }
+        .header p { color: var(--text-muted); font-size: 12px; }
+
+        .btn-pdf {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: var(--primary); color: #fff; border: none;
+            padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 600;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .btn-pdf:hover { background: #0F2D54; }
+
+        .main-content { display: grid; grid-template-columns: 380px 1fr; min-height: 650px; }
+
+        .sidebar { background-color: #F8FAFC; border-right: 1px solid var(--border); padding: 20px; overflow-y: auto; max-height: 85vh; }
+        .sidebar::-webkit-scrollbar { width: 6px; }
+        .sidebar::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 4px; }
+
+        .faturamento-box { background: var(--primary); color: white; padding: 15px; border-radius: 8px; text-align: center; margin-bottom: 20px; }
+        .faturamento-box span { font-size: 11px; opacity: 0.8; text-transform: uppercase; }
+        .faturamento-box strong { display: block; font-size: 20px; margin-top: 4px; }
+
+        .section-title { font-size: 11px; text-transform: uppercase; font-weight: 700; color: var(--primary); margin: 20px 0 10px 0; padding-bottom: 5px; border-bottom: 1px solid #CBD5E1; display: flex; justify-content: space-between; align-items: center; }
+        .badge-lock { font-size: 9px; background: #E2E8F0; color: #475569; padding: 2px 6px; border-radius: 4px; }
+        .badge-optional { font-size: 9px; background: var(--optional-bg); color: var(--optional-color); padding: 2px 6px; border-radius: 4px; font-weight: 600; }
+
+        .input-row { display: flex; gap: 10px; margin-bottom: 10px; }
+        .form-group { flex: 1; margin-bottom: 8px; position: relative; }
+        .form-group label { display: block; font-size: 11px; font-weight: 600; color: var(--text-dark); margin-bottom: 4px; }
+        
+        .helper-text { font-size: 9.5px; color: #64748B; margin-top: 4px; display: block; line-height: 1.2; font-style: italic; }
+
+        .input-wrapper { position: relative; display: flex; align-items: center; }
+        .prefix, .suffix { position: absolute; font-size: 11px; color: var(--text-muted); font-weight: 600; padding: 0 10px; }
+        .prefix { left: 0; }
+        .suffix { right: 0; }
+
+        input { width: 100%; padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px; font-size: 13px; outline: none; transition: border 0.2s; background-color: #fff; }
+        input.has-prefix { padding-left: 32px; }
+        input.has-suffix { padding-right: 32px; }
+        input:focus { border-color: var(--primary); }
+        input[readonly] { background-color: #F1F5F9; color: #94A3B8; cursor: not-allowed; border-color: #E2E8F0; }
+        .highlight-input { border: 1px solid var(--numus-color) !important; background-color: var(--numus-bg) !important; color: var(--numus-color); font-weight: bold; }
+
+        .optional-service-row {
+            background: #FAFAFA;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px 10px;
+            margin-bottom: 8px;
+        }
+        .optional-service-row.is-disabled { opacity: 0.45; }
+        .optional-toggle-header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; cursor: pointer; }
+        .optional-toggle-header .opt-label { font-size: 11px; font-weight: 700; color: var(--optional-color); flex: 1; }
+        .toggle-switch { position: relative; display: inline-block; width: 32px; height: 18px; flex-shrink: 0; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #CBD5E1; border-radius: 18px; transition: .3s; }
+        .toggle-slider:before { position: absolute; content: ""; height: 12px; width: 12px; left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: .3s; }
+        .toggle-switch input:checked + .toggle-slider { background-color: var(--optional-color); }
+        .toggle-switch input:checked + .toggle-slider:before { transform: translateX(14px); }
+
+        .comparison-area { padding: 25px 30px; background: #fff; display: flex; flex-direction: column; position: relative; }
+        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 20px; border-radius: 6px; box-shadow: inset 0 0 5px rgba(0,0,0,0.02); }
+        .table-container { width: 100%; border-collapse: collapse; min-width: 650px; }
+        .table-container th, .table-container td { padding: 10px 12px; text-align: right; border-bottom: 1px solid var(--border); }
+        .table-container th { font-size: 11px; text-transform: uppercase; color: var(--text-muted); background-color: #F1F5F9; font-weight: 600; border-top: 1px solid var(--border); white-space: nowrap; }
+        .clickable-header { cursor: pointer; user-select: none; transition: background 0.2s; }
+        .clickable-header:hover { filter: brightness(0.95); }
+        .toggle-icon { display: inline-block; margin-left: 6px; font-size: 12px; background: rgba(0,0,0,0.08); padding: 2px 6px; border-radius: 4px; }
+        .col-desc { text-align: left !important; width: 32%; font-weight: 600; color: var(--text-dark); }
+        .col-qty { color: var(--text-muted); font-size: 12px; width: 8%; text-align: center !important; }
+        .table-container th.col-group-numus { background-color: var(--numus-bg); color: var(--numus-color); border-left: 1px solid #fff; }
+        .table-container th.col-group-banco { background-color: var(--banco-bg); color: var(--banco-color); border-left: 1px solid #fff; }
+        .val-numus { color: var(--numus-color); font-weight: 500; white-space: nowrap; }
+        .val-banco { color: var(--banco-color); font-weight: 500; white-space: nowrap; }
+        .row-total td { font-weight: 700; background-color: #F8FAFC; font-size: 13px; }
+
+        .row-optional td { background-color: #FAFAFE; }
+        .row-optional .col-desc { color: var(--optional-color); }
+        .row-disabled td { opacity: 0.35; text-decoration: line-through; }
+        .badge-opt-table { font-size: 9px; background: var(--optional-bg); color: var(--optional-color); padding: 1px 5px; border-radius: 3px; margin-left: 5px; font-weight: 600; vertical-align: middle; white-space: nowrap; }
+
+        .intangibles-section-header {
+            background: linear-gradient(135deg, #0A192F 0%, #0F766E 100%); color: white; padding: 10px 14px;
+            border-radius: 6px; margin: 10px 0 6px 0; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+        }
+        .intangibles-section-header span { opacity: 0.75; font-weight: 400; font-size: 10px; margin-left: 6px; }
+        .row-intangible td { background-color: #F0FDF4; }
+        .row-intangible .col-desc { color: #059669; }
+        .val-intangible { color: #059669 !important; font-weight: 700 !important; white-space: nowrap; }
+
+        .tooltip-icon { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 50%; background-color: #94A3B8; color: white; font-size: 11px; font-weight: bold; font-style: italic; cursor: help; margin-left: 6px; position: relative; vertical-align: middle; }
+        .tooltip-icon:hover, .tooltip-icon:active { background-color: var(--primary); }
+        .tooltip-icon::after { content: attr(data-tooltip); position: absolute; bottom: 150%; left: 50%; transform: translateX(-50%); background-color: var(--tooltip-bg); color: #fff; padding: 10px 14px; border-radius: 6px; font-size: 12px; font-weight: normal; font-style: normal; white-space: pre-wrap; width: max-content; max-width: 250px; text-align: left; line-height: 1.4; display: none; z-index: 9999; box-shadow: 0 8px 24px rgba(0,0,0,0.2); pointer-events: none; }
+        .tooltip-icon::before { content: ''; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); border-width: 5px; border-style: solid; border-color: var(--tooltip-bg) transparent transparent transparent; display: none; z-index: 9999; pointer-events: none; }
+        .tooltip-icon:hover::after, .tooltip-icon:hover::before, .tooltip-icon:active::after, .tooltip-icon:active::before { display: block; }
+
+        .results-panel { display: flex; gap: 20px; margin-top: auto; transition: all 0.3s ease; }
+        .result-card { flex: 1; padding: 20px; border-radius: 8px; border: 1px solid var(--border); text-align: center; transition: all 0.3s ease; }
+        .result-header { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 5px; }
+        .result-card span { font-size: 12px; text-transform: uppercase; font-weight: 600; opacity: 0.8; display: block; transition: all 0.3s ease; }
+        .result-card strong { font-size: 26px; transition: all 0.3s ease; display: block; }
+        .alert-btn { background-color: #FACC15; color: #854D0E; border: none; width: 22px; height: 22px; border-radius: 50%; font-size: 14px; font-weight: bold; cursor: pointer; display: none; align-items: center; justify-content: center; box-shadow: 0 2px 4px rgba(0,0,0,0.15); transition: transform 0.2s, background 0.2s; }
+        .alert-btn:hover { background-color: #FDE047; transform: scale(1.1); }
+        .state-win { background-color: #ECFDF5; border-color: #10B981; }
+        .state-win strong { color: #059669; font-size: 32px; font-weight: 800; }
+        .state-win-year { background-color: var(--primary); border-color: var(--primary); color: white; }
+        .state-win-year strong { color: var(--accent); font-size: 32px; font-weight: 800; }
+        .state-lose { background-color: #F8FAFC; border-color: #E2E8F0; }
+        .state-lose strong { color: #64748B; font-size: 18px; font-weight: 500; }
+        .state-lose-year { background-color: #F1F5F9; border-color: #E2E8F0; color: #475569; }
+        .state-lose-year strong { color: #64748B; font-size: 18px; font-weight: 500; }
+
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 10000; justify-content: center; align-items: center; backdrop-filter: blur(2px); }
+        .modal-content { background: var(--alert-bg); color: var(--alert-text); padding: 25px; border-radius: 12px; max-width: 450px; position: relative; border: 1px solid #EAB308; box-shadow: 0 10px 25px rgba(0,0,0,0.15); margin: 20px; animation: slideUp 0.3s ease-out; }
+        .modal-content h4 { margin-bottom: 12px; font-size: 16px; display: flex; align-items: center; gap: 8px; }
+        .modal-content p { font-size: 13px; line-height: 1.5; opacity: 0.9; }
+        .close-modal { position: absolute; top: 12px; right: 15px; font-size: 24px; font-weight: bold; cursor: pointer; color: var(--alert-text); opacity: 0.7; transition: opacity 0.2s; }
+        .close-modal:hover { opacity: 1; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .nota-boleto { font-size: 11px; color: var(--text-muted); background: #FFFBEB; border-left: 3px solid #F59E0B; padding: 6px 10px; border-radius: 0 4px 4px 0; margin-top: 6px; line-height: 1.4; }
+
+        @media (max-width: 1024px) { .main-content { grid-template-columns: 1fr; } .sidebar { max-height: none; border-right: none; border-bottom: 1px solid var(--border); } }
+        @media (max-width: 768px) { body { padding: 10px; } .header { flex-direction: column; text-align: center; align-items: center; } .header-titles { text-align: center; } .comparison-area { padding: 15px; } .results-panel { flex-direction: column; gap: 15px; } .input-row { flex-direction: column; gap: 12px; margin-bottom: 15px; } .form-group { margin-bottom: 0; width: 100%; } input { padding: 10px 12px; font-size: 14px; } .prefix, .suffix { font-size: 13px; padding: 0 12px; } input.has-prefix { padding-left: 38px; } input.has-suffix { padding-right: 38px; } .tooltip-icon::after { left: 0; transform: translateX(-10%); max-width: 220px; } .tooltip-icon::before { left: 10%; } }
+
+        @media print {
+            body { padding: 0; background: white; }
+            .btn-pdf, .alert-btn, .close-modal { display: none !important; }
+            .sidebar { max-height: none; }
+            .main-content { grid-template-columns: 360px 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container" id="printArea">
+        <header class="header">
+            <img src="https://i.postimg.cc/256qdG9t/numusby-logo.png" alt="Numus Logo">
+            <div class="header-titles">
+                <h1>Simulador de Custos e Retorno</h1>
+                <p>Análise Comparativa de Cenários Financeiros</p>
+            </div>
+            <button class="btn-pdf" onclick="exportarPDF()">⬇ Exportar PDF</button>
+        </header>
+
+        <main class="main-content">
+            <aside class="sidebar">
+                <div class="faturamento-box">
+                    <span>Faturamento Mensal Estimado</span>
+                    <strong id="displayFaturamento">R$ 0,00</strong>
+                </div>
+
+                <div class="section-title">Parâmetros Base</div>
+                <div class="input-row">
+                    <div class="form-group">
+                        <label>Total NF / Faturas</label>
+                        <input type="number" id="titulos" value="10000" oninput="calcularROI()">
+                    </div>
+                    <div class="form-group">
+                        <label>Ticket Médio</label>
+                        <div class="input-wrapper">
+                            <span class="prefix">R$</span>
+                            <input type="number" id="ticket" value="1300" class="has-prefix" oninput="calcularROI()">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-title">Mix Atual: Banco + Ambev</div>
+                <div class="input-row">
+                    <div class="form-group">
+                        <label>% PIX À Vista</label>
+                        <div class="input-wrapper"><input type="number" id="pctBancoPix" value="30" class="has-suffix" oninput="calcularROI()"><span class="suffix">%</span></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Tarifa PIX</label>
+                        <div class="input-wrapper"><span class="prefix">R$</span><input type="number" id="tarifaBancoPix" value="0.50" step="0.01" class="has-prefix" oninput="calcularROI()"></div>
+                    </div>
+                </div>
+                <div class="input-row">
+                    <div class="form-group">
+                        <label>% Boleto (A Prazo)</label>
+                        <div class="input-wrapper"><input type="number" id="pctBancoBoleto" value="70" class="has-suffix" readonly><span class="suffix">%</span></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Tarifa Boleto</label>
+                        <div class="input-wrapper"><span class="prefix">R$</span><input type="number" id="tarifaBancoBoleto" value="1.10" step="0.01" class="has-prefix" oninput="calcularROI()"></div>
+                    </div>
+                </div>
+                <div class="nota-boleto">ℹ️ A taxa de boleto pode ser configurada de forma diferente para pagamentos <strong>à vista</strong> e <strong>a prazo</strong>.</div>
+
+                <div class="input-row" style="margin-top:8px">
+                    <div class="form-group">
+                        <label>Assinatura Digital <span style="font-size:9px;background:#FFE4E6;color:#BE123C;padding:1px 5px;border-radius:3px;font-weight:700;">CUSTO EXTERNO</span></label>
+                        <div class="input-wrapper"><span class="prefix">R$</span><input type="number" id="tAssinatura" value="0.38" step="0.01" class="has-prefix" oninput="calcularROI()"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>% Uso Assinatura</label>
+                        <div class="input-wrapper"><input type="number" id="pctAssinatura" value="100" class="has-suffix" oninput="calcularROI()"><span class="suffix">%</span></div>
+                    </div>
+                </div>
+
+                <div class="section-title">Mix Numus <span class="badge-lock">Espelhado</span></div>
+                <div class="input-row">
+                    <div class="form-group">
+                        <label>% À Vista</label>
+                        <div class="input-wrapper"><input type="number" id="pctNumusVista" value="30" class="has-suffix" readonly><span class="suffix">%</span></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Tarifa À Vista</label>
+                        <div class="input-wrapper"><span class="prefix">R$</span><input type="number" id="tarifaNumusVista" value="0.25" step="0.01" class="has-prefix" oninput="calcularROI()"></div>
+                        <span class="helper-text">*Configurável pela revenda</span>
+                    </div>
+                </div>
+                <div class="input-row">
+                    <div class="form-group">
+                        <label>% A Prazo</label>
+                        <div class="input-wrapper"><input type="number" id="pctNumusPrazo" value="70" class="has-suffix" readonly><span class="suffix">%</span></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Tarifa A Prazo</label>
+                        <div class="input-wrapper"><span class="prefix">R$</span><input type="number" id="tarifaNumusPrazo" value="0.45" step="0.01" class="has-prefix" oninput="calcularROI()"></div>
+                        <span class="helper-text">*Configurável pela revenda</span>
+                    </div>
+                </div>
+
+                <div class="section-title" style="color: #0284C7; border-color: #BAE6FD;">Simulador de Comportamento</div>
+                <div class="input-row">
+                    <div class="form-group">
+                        <label>Migração para A Prazo</label>
+                        <div class="input-wrapper"><input type="number" id="migracaoPrazo" value="0" class="has-suffix highlight-input" oninput="calcularROI()" title="Quantos % de clientes mudarão do pagamento À Vista para A Prazo"><span class="suffix">%</span></div>
+                    </div>
+                </div>
+
+                <div class="section-title">Serviços <span style="color:var(--numus-color)">Incluídos</span></div>
+                <div class="input-row">
+                    <div class="form-group">
+                        <label>Mensalidade <span style="font-size:9px;background:#E0F2FE;color:#0369A1;padding:1px 5px;border-radius:3px;font-weight:700;">OBRIGATÓRIO</span></label>
+                        <div class="input-wrapper"><span class="prefix">R$</span><input type="number" id="mensalidadeNumus" value="1000" class="has-prefix" oninput="calcularROI()"></div>
+                    </div>
+                </div>
+
+                <div class="section-title">Serviços <span class="badge-optional">OPCIONAIS</span></div>
+
+                <div class="optional-service-row" id="rowOptNumExclusivo">
+                    <div class="optional-toggle-header" onclick="toggleOpcional('numExclusivo')">
+                        <label class="toggle-switch" onclick="event.stopPropagation()">
+                            <input type="checkbox" id="chkNumExclusivo" checked onchange="toggleOpcional('numExclusivo')">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="opt-label">Nº Exclusivo</span>
+                    </div>
+                    <div class="input-row" style="margin-bottom:0">
+                        <div class="form-group">
+                            <div class="input-wrapper"><span class="prefix">R$</span><input type="number" id="numExclusivo" value="500" class="has-prefix" oninput="calcularROI()"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="optional-service-row" id="rowOptCanhoto">
+                    <div class="optional-toggle-header" onclick="toggleOpcional('canhoto')">
+                        <label class="toggle-switch" onclick="event.stopPropagation()">
+                            <input type="checkbox" id="chkCanhoto" checked onchange="toggleOpcional('canhoto')">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="opt-label">Canhoto Digital</span>
+                    </div>
+                    <div class="input-row" style="margin-bottom:0">
+                        <div class="form-group">
+                            <label style="font-size:10px">% Uso</label>
+                            <div class="input-wrapper"><input type="number" id="pctCanhoto" value="100" class="has-suffix" oninput="calcularROI()"><span class="suffix">%</span></div>
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size:10px">Tarifa</label>
+                            <div class="input-wrapper"><span class="prefix">R$</span><input type="number" id="tCanhoto" value="0.18" step="0.01" class="has-prefix" oninput="calcularROI()"></div>
+                        </div>
+                    </div>
+                    <div class="input-row" style="margin-bottom:0; margin-top: 6px;">
+                        <div class="form-group">
+                            <label style="font-size:10px; color:#059669;">💰 Econ. Operacional (Ex: 1 Salário Mínimo)</label>
+                            <div class="input-wrapper"><span class="prefix">R$</span><input type="number" id="economiaCanhoto" value="1412" step="1" class="has-prefix" oninput="calcularROI()" style="border-color: #A7F3D0; background-color: #F0FDF4;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="optional-service-row" id="rowOptMensageria">
+                    <div class="optional-toggle-header" onclick="toggleOpcional('mensageria')">
+                        <label class="toggle-switch" onclick="event.stopPropagation()">
+                            <input type="checkbox" id="chkMensageria" checked onchange="toggleOpcional('mensageria')">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="opt-label">Mensageria (WhatsApp)</span>
+                    </div>
+                    <div class="input-row" style="margin-bottom:0">
+                        <div class="form-group">
+                            <label style="font-size:10px">% Uso</label>
+                            <div class="input-wrapper"><input type="number" id="pctMensageria" value="100" class="has-suffix" oninput="calcularROI()"><span class="suffix">%</span></div>
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size:10px">Tarifa Wpp</label>
+                            <div class="input-wrapper"><span class="prefix">R$</span><input type="number" id="tMensageria" value="0.15" step="0.01" class="has-prefix" oninput="calcularROI()"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section-title" style="color:#059669; border-color:#A7F3D0; margin-top:16px;">
+                    Benefícios Intangíveis
+                    <span class="badge-optional" style="background:#DCFCE7;color:#15803D;">GANHOS OCULTOS</span>
+                </div>
+
+                <div class="optional-service-row" id="rowOptFloat">
+                    <div class="optional-toggle-header" onclick="toggleOpcional('float')">
+                        <label class="toggle-switch" onclick="event.stopPropagation()">
+                            <input type="checkbox" id="chkFloat" checked onchange="toggleOpcional('float')">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="opt-label" style="color:#059669">💰 Inv. Float (Mês)</span>
+                    </div>
+                    <div class="input-row" style="margin-bottom:0">
+                        <div class="form-group">
+                            <label style="font-size:10px">CDI Mensal</label>
+                            <div class="input-wrapper"><input type="number" id="cdiMensal" value="1.15" step="0.01" class="has-suffix" oninput="calcularROI()"><span class="suffix">%</span></div>
+                        </div>
+                        <div class="form-group">
+                            <label style="font-size:10px">Rendimento Conta</label>
+                            <div class="input-wrapper"><input type="number" id="pctCdi" value="80" class="has-suffix" oninput="calcularROI()"><span class="suffix">%</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="optional-service-row" id="rowOptLogistica">
+                    <div class="optional-toggle-header" onclick="toggleOpcional('logistica')">
+                        <label class="toggle-switch" onclick="event.stopPropagation()">
+                            <input type="checkbox" id="chkLogistica" checked onchange="toggleOpcional('logistica')">
+                            <span class="toggle-slider"></span>
+                        </label>
+                        <span class="opt-label" style="color:#059669">🚚 Otimização de Frota (Log.)</span>
+                    </div>
+                    <div class="input-row" style="margin-bottom:0">
+                        <div class="form-group">
+                            <span class="helper-text" style="color:#059669; text-align:left; font-size: 10px;">
+                                *Cálculo Base: Custo médio do caminhão R$ 8.000, 26 dias úteis, 30 entregas/dia. Ganho estimado de 2 entregas extras por rota pela agilidade na cobrança.
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+            </aside>
+
+            <section class="comparison-area">
+                <div class="table-responsive">
+                    <table class="table-container">
+                        <thead>
+                            <tr>
+                                <th class="col-desc" rowspan="2">Parâmetros</th>
+                                <th rowspan="2" class="col-qty">Qtd.</th>
+                                <th colspan="2" id="thNumusGroup" class="col-group-numus clickable-header" title="Clique para expandir/ocultar a coluna de Unitário" onclick="toggleColumn('numus')">
+                                    Numus / PayIP <span class="toggle-icon" id="iconNumus">[-]</span>
+                                </th>
+                                <th colspan="2" id="thBancoGroup" class="col-group-banco clickable-header" title="Clique para expandir/ocultar a coluna de Unitário" onclick="toggleColumn('banco')">
+                                    Banco + Ambev <span class="toggle-icon" id="iconBanco">[-]</span>
+                                </th>
+                            </tr>
+                            <tr>
+                                <th class="col-group-numus" id="thNumusUnit">Unitário</th>
+                                <th class="col-group-numus">Total</th>
+                                <th class="col-group-banco" id="thBancoUnit">Unitário</th>
+                                <th class="col-group-banco">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tableBody"></tbody>
+                    </table>
+                </div>
+
+                <div id="legendaIntangiveis" style="font-size:11px;color:#059669;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:6px;padding:8px 12px;margin-bottom:14px;display:none;">
+                    🟢 <strong>Benefícios Intangíveis Ativos:</strong> Os valores em verde representam ganhos reais (economia na operação, rendimento de caixa antecipado) que não aparecem na fatura bancária, mas geram impacto direto (ROI) na adoção da ferramenta.
+                </div>
+
+                <div class="results-panel" id="resultsPanel">
+                    <div class="result-card" id="cardMes">
+                        <div class="result-header">
+                            <span id="labelMes">Economia Financeira (Mês)</span>
+                            <button id="alertBtn" class="alert-btn" onclick="abrirModalAlerta()" title="Dica de Argumentação">!</button>
+                        </div>
+                        <strong id="resGanhoMes">R$ 0,00</strong>
+                    </div>
+                    <div class="result-card" id="cardAno">
+                        <span id="labelAno">Geração de Caixa (Ano)</span>
+                        <strong id="resGanhoAno">R$ 0,00</strong>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div class="modal-overlay" id="modalAlerta" onclick="fecharModalFora(event)">
+        <div class="modal-content">
+            <span class="close-modal" onclick="fecharModalAlerta()">&times;</span>
+            <h4>⚠️ Alerta Estratégico de Operação</h4>
+            <p>Comparando taxa por taxa, a operação pode parecer mais cara neste cenário, mas o <strong>verdadeiro lucro está nos intangíveis</strong>. Lembre-se:</p>
+            <ul style="margin-top: 8px; margin-left: 20px; font-size: 13px; line-height: 1.6; opacity: 0.9;">
+                <li>A eliminação de custos com conciliação manual.</li>
+                <li>A redução drástica de fraudes e inadimplência.</li>
+                <li>O ganho de tempo e eficiência da frota na rua (Logística).</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        const formatBRL = (v) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 2 });
+        const formatNumber = (v) => v.toLocaleString('pt-BR');
+
+        let showUnitNumus = true;
+        let showUnitBanco = true;
+
+        const opcionaisConfig = {
+            numExclusivo: { chk: 'chkNumExclusivo', row: 'rowOptNumExclusivo', inputs: ['numExclusivo'] },
+            canhoto:       { chk: 'chkCanhoto',      row: 'rowOptCanhoto',      inputs: ['pctCanhoto', 'tCanhoto', 'economiaCanhoto'] },
+            mensageria:    { chk: 'chkMensageria',   row: 'rowOptMensageria',   inputs: ['pctMensageria', 'tMensageria'] },
+            float:         { chk: 'chkFloat',        row: 'rowOptFloat',        inputs: ['cdiMensal', 'pctCdi'] },
+            logistica:     { chk: 'chkLogistica',    row: 'rowOptLogistica',    inputs: [] },
+        };
+
+        function toggleOpcional(key) {
+            const cfg = opcionaisConfig[key];
+            const chk = document.getElementById(cfg.chk);
+            const row = document.getElementById(cfg.row);
+            const active = chk.checked;
+            row.classList.toggle('is-disabled', !active);
+            cfg.inputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.disabled = !active;
+            });
+            calcularROI();
+        }
+
+        function isAtivo(key) { return document.getElementById(opcionaisConfig[key].chk).checked; }
+        
+        function abrirModalAlerta() { document.getElementById('modalAlerta').style.display = 'flex'; }
+        function fecharModalAlerta() { document.getElementById('modalAlerta').style.display = 'none'; }
+        function fecharModalFora(e) { if (e.target === document.getElementById('modalAlerta')) fecharModalAlerta(); }
+
+        function toggleColumn(target) {
+            if (target === 'numus') {
+                showUnitNumus = !showUnitNumus;
+                document.getElementById('iconNumus').innerText = showUnitNumus ? "[-]" : "[+]";
+                document.getElementById('thNumusGroup').colSpan = showUnitNumus ? 2 : 1;
+                document.getElementById('thNumusUnit').style.display = showUnitNumus ? '' : 'none';
+            } else {
+                showUnitBanco = !showUnitBanco;
+                document.getElementById('iconBanco').innerText = showUnitBanco ? "[-]" : "[+]";
+                document.getElementById('thBancoGroup').colSpan = showUnitBanco ? 2 : 1;
+                document.getElementById('thBancoUnit').style.display = showUnitBanco ? '' : 'none';
+            }
+            calcularROI();
+        }
+
+        function calcularROI() {
+            const titulos = parseFloat(document.getElementById('titulos').value) || 0;
+            const ticket  = parseFloat(document.getElementById('ticket').value)  || 0;
+            const faturamento = titulos * ticket;
+            document.getElementById('displayFaturamento').innerText = formatBRL(faturamento);
+
+            let pBancoPix = parseFloat(document.getElementById('pctBancoPix').value) || 0;
+            if (pBancoPix > 100) pBancoPix = 100;
+            const pBancoBol = 100 - pBancoPix;
+            document.getElementById('pctBancoBoleto').value = pBancoBol.toFixed(0);
+
+            let txMigracao = parseFloat(document.getElementById('migracaoPrazo').value) || 0;
+            let numusPrazoFinal = pBancoBol + txMigracao;
+            let numusVistaFinal = pBancoPix - txMigracao;
+            if (numusVistaFinal < 0) { numusPrazoFinal += numusVistaFinal; numusVistaFinal = 0; }
+            if (numusPrazoFinal > 100) numusPrazoFinal = 100;
+            document.getElementById('pctNumusPrazo').value = numusPrazoFinal.toFixed(1);
+            document.getElementById('pctNumusVista').value = numusVistaFinal.toFixed(1);
+
+            const qBancoPix = titulos * (pBancoPix / 100);
+            const qBancoBol = titulos * (pBancoBol / 100);
+            const qNumVista = titulos * (numusVistaFinal / 100);
+            const qNumPrazo = titulos * (numusPrazoFinal / 100);
+
+            const tNumVista = parseFloat(document.getElementById('tarifaNumusVista').value) || 0;
+            const tNumPrazo = parseFloat(document.getElementById('tarifaNumusPrazo').value) || 0;
+            const tBancoPix = parseFloat(document.getElementById('tarifaBancoPix').value) || 0;
+            const tBancoBoleto = parseFloat(document.getElementById('tarifaBancoBoleto').value) || 0;
+
+            const valMensalidade = parseFloat(document.getElementById('mensalidadeNumus').value) || 0;
+
+            const valNumExclusivo = isAtivo('numExclusivo') ? (parseFloat(document.getElementById('numExclusivo').value) || 0) : 0;
+
+            const pctCanhoto = isAtivo('canhoto') ? (parseFloat(document.getElementById('pctCanhoto').value) || 0) : 0;
+            const tCanhoto   = isAtivo('canhoto') ? (parseFloat(document.getElementById('tCanhoto').value) || 0) : 0;
+            const qCanhoto   = titulos * (pctCanhoto / 100);
+            const economiaCanhoto = isAtivo('canhoto') ? (parseFloat(document.getElementById('economiaCanhoto').value) || 0) : 0;
+
+            const pctMsg = isAtivo('mensageria') ? (parseFloat(document.getElementById('pctMensageria').value) || 0) : 0;
+            const tMsg   = isAtivo('mensageria') ? (parseFloat(document.getElementById('tMensageria').value) || 0) : 0;
+            const qMsg   = titulos * (pctMsg / 100);
+
+            const pctAss = parseFloat(document.getElementById('pctAssinatura').value) || 0;
+            const tAss   = parseFloat(document.getElementById('tAssinatura').value) || 0;
+            const qAss   = titulos * (pctAss / 100);
+
+            // Cálculos Avançados (Float, Logística e Mensageria)
+            const cdiMensal = parseFloat(document.getElementById('cdiMensal').value) || 0;
+            const pctCdi    = parseFloat(document.getElementById('pctCdi').value) || 0;
+            const taxaRendimentoDecimal = (cdiMensal / 100) * (pctCdi / 100);
+
+            // Float: (Volume a Prazo / 30) * Taxa
+            const volumePrazo = qNumPrazo * ticket;
+            const volumeDiarioPrazo = volumePrazo / 30;
+            const ganhoFloat = isAtivo('float') ? (volumeDiarioPrazo * taxaRendimentoDecimal) : 0;
+
+            // Incremento Mensageria: 5,5% do Faturamento * Taxa Rendimento Float
+            const volumeAntecipadoMensageria = faturamento * 0.055;
+            const ganhoMensageria = isAtivo('mensageria') ? (volumeAntecipadoMensageria * taxaRendimentoDecimal) : 0;
+
+            // Logística: Constantes fixas (8000 custo, 26 dias, 30 entregas) => ~R$10.25/entrega. Economizando 2 entregas.
+            const custoPorEntrega = 8000 / (26 * 30);
+            const economiaPorRota = 2 * custoPorEntrega;
+            const numRotas = titulos / 30;
+            const ganhoLogistica = isAtivo('logistica') ? (numRotas * economiaPorRota) : 0;
+
+            const temIntangiveis = (isAtivo('float') && ganhoFloat > 0) || (isAtivo('logistica') && ganhoLogistica > 0) || (isAtivo('mensageria') && ganhoMensageria > 0) || (isAtivo('canhoto') && economiaCanhoto > 0);
+            document.getElementById('legendaIntangiveis').style.display = temIntangiveis ? 'block' : 'none';
+
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            let sumNumus = 0, sumBanco = 0;
+
+            const addRow = (desc, tooltip, qtd, numUnit, numTot, banUnit, banTot, tipo = 'normal') => {
+                if (tipo === 'normal' || tipo === 'opcional') { sumNumus += numTot; sumBanco += banTot; }
+                else if (tipo === 'intangivel') { sumNumus -= Math.abs(numTot); }
+
+                const tdNumUnitHtml = showUnitNumus ? `<td class="${tipo === 'intangivel' ? 'val-intangible' : 'val-numus'}">${numUnit !== null ? (typeof numUnit === 'string' ? numUnit : formatBRL(numUnit)) : '-'}</td>` : '';
+                const tdBanUnitHtml = showUnitBanco ? `<td class="val-banco">${banUnit !== null ? (typeof banUnit === 'string' ? banUnit : formatBRL(banUnit)) : '-'}</td>` : '';
+
+                let rowClass = '';
+                if (tipo === 'opcional') rowClass = 'row-optional';
+                if (tipo === 'intangivel') rowClass = 'row-intangible';
+
+                const optBadge = tipo === 'opcional' ? '<span class="badge-opt-table">OPCIONAL</span>' : '';
+                const intBadge = tipo === 'intangivel' ? '<span class="badge-opt-table" style="background:#DCFCE7;color:#15803D;">INTANGÍVEL</span>' : '';
+
+                const numTotDisplay = tipo === 'intangivel'
+                    ? `<td class="val-intangible">- ${formatBRL(Math.abs(numTot))}</td>`
+                    : `<td class="${tipo === 'opcional' ? 'val-numus' : 'val-numus'}">${formatBRL(numTot)}</td>`;
+
+                const tr = document.createElement('tr');
+                tr.className = rowClass;
+                tr.innerHTML = `
+                    <td class="col-desc">${desc}${optBadge}${intBadge} ${tooltip ? `<span class="tooltip-icon" data-tooltip="${tooltip}">i</span>` : ''}</td>
+                    <td class="col-qty">${formatNumber(qtd)}</td>
+                    ${tdNumUnitHtml}
+                    ${numTotDisplay}
+                    ${tdBanUnitHtml}
+                    <td class="val-banco">${formatBRL(banTot)}</td>
+                `;
+                tbody.appendChild(tr);
+            };
+
+            const addSectionHeader = (label) => {
+                const tr = document.createElement('tr');
+                const cols = 2 + (showUnitNumus ? 1 : 0) + 1 + (showUnitBanco ? 1 : 0) + 1;
+                tr.innerHTML = `<td colspan="${cols}" style="padding:4px 12px;"><div class="intangibles-section-header">${label}</div></td>`;
+                tbody.appendChild(tr);
+            };
+
+            // Custos Base
+            addRow("Pag Fácil à vista / PIX", "Taxa customizável pela revenda.", qNumVista, tNumVista, (qNumVista * tNumVista), tBancoPix, (qBancoPix * tBancoPix), 'normal');
+            addRow("Pag Fácil a prazo / Boleto", "Taxa customizável pela revenda.", qNumPrazo, tNumPrazo, (qNumPrazo * tNumPrazo), tBancoBoleto, (qBancoBol * tBancoBoleto), 'normal');
+            addRow("Assinatura Digital", "Custo cobrado pelo banco/mercado. Não é um serviço Numus — aparece apenas no custo da operação atual.", qAss, null, 0, tAss, (qAss * tAss), 'normal');
+            addRow("Mensalidade", null, 1, valMensalidade, valMensalidade, 0, 0, 'normal');
+
+            // Opcionais
+            addSectionHeader('Serviços Opcionais');
+            addRow("Número Exclusivo", null, 1, isAtivo('numExclusivo') ? valNumExclusivo : null, isAtivo('numExclusivo') ? valNumExclusivo : 0, 0, 0, 'opcional');
+            addRow("Canhoto Digital", null, qCanhoto, isAtivo('canhoto') ? tCanhoto : null, isAtivo('canhoto') ? (qCanhoto * tCanhoto) : 0, 0, 0, 'opcional');
+            addRow("Mensageria (WhatsApp)", null, qMsg, isAtivo('mensageria') ? tMsg : null, isAtivo('mensageria') ? (qMsg * tMsg) : 0, 0, 0, 'opcional');
+
+            // Intangíveis / Abatimentos
+            addSectionHeader('💡 Benefícios Intangíveis — Otimizações que geram Caixa');
+            if (isAtivo('canhoto')) addRow("Econ. Operacional (Canhoto)", "Redução de custo manual no RH/Faturamento com a verificação de canhoto físico.", 1, null, economiaCanhoto, 0, 0, 'intangivel');
+            if (isAtivo('mensageria')) addRow("Incremento Antecipação (Msg.)", "Ganho gerado por 5,5% de aumento nos títulos antecipados via cobrança no WhatsApp.", 1, null, ganhoMensageria, 0, 0, 'intangivel');
+            addRow("Investimento Float", "Fórmula: (Volume a Prazo / 30) × Rendimento da Conta (Migração de D+1 para D+0).", 1, isAtivo('float') ? (cdiMensal + "%") : null, ganhoFloat, "0,00%", 0, 'intangivel');
+            addRow("Otimização da Frota (Log.)", "Agilidade no check-out salva 2 entregas por rota, otimizando em eficiência o custo mensal do caminhão (R$8k).", numRotas, null, ganhoLogistica, "0 Ent.", 0, 'intangivel');
+
+            // Totalizadores
+            const mediaNumus = titulos > 0 ? (sumNumus / titulos) : 0;
+            const mediaBanco = titulos > 0 ? (sumBanco / titulos) : 0;
+            const tdNumMediaHtml = showUnitNumus ? `<td class="val-numus">Média: ${formatBRL(mediaNumus)}</td>` : '';
+            const tdBanMediaHtml = showUnitBanco ? `<td class="val-banco">Média: ${formatBRL(mediaBanco)}</td>` : '';
+            const trTotal = document.createElement('tr');
+            trTotal.className = 'row-total';
+            trTotal.innerHTML = `
+                <td class="col-desc" colspan="2">Custo Médio Total (Considerando Ganhos)</td>
+                ${tdNumMediaHtml}
+                <td class="val-numus">${formatBRL(sumNumus)}</td>
+                ${tdBanMediaHtml}
+                <td class="val-banco">${formatBRL(sumBanco)}</td>
+            `;
+            tbody.appendChild(trTotal);
+
+            const ganhoMes = sumBanco - sumNumus;
+            const ganhoAno = ganhoMes * 12;
+            document.getElementById('resGanhoMes').innerText = formatBRL(ganhoMes);
+            document.getElementById('resGanhoAno').innerText = formatBRL(ganhoAno);
+
+            const btnAlert = document.getElementById('alertBtn');
+            const cardMes  = document.getElementById('cardMes');
+            const cardAno  = document.getElementById('cardAno');
+            const labelMes = document.getElementById('labelMes');
+
+            if (ganhoMes >= 0) {
+                btnAlert.style.display = 'none';
+                cardMes.className = 'result-card state-win';
+                cardAno.className = 'result-card state-win-year';
+                labelMes.innerText = 'Geração de Caixa (Mês)';
+            } else {
+                btnAlert.style.display = 'inline-flex';
+                cardMes.className = 'result-card state-lose';
+                cardAno.className = 'result-card state-lose-year';
+                labelMes.innerText = 'Diferença de Custos (Mês)';
+            }
+        }
+
+        async function exportarPDF() {
+            const btn = document.querySelector('.btn-pdf');
+            btn.innerText = '⏳ Gerando PDF...';
+            btn.disabled = true;
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const element = document.getElementById('printArea');
+
+                const canvas = await html2canvas(element, {
+                    scale: 1.8,
+                    useCORS: true,
+                    backgroundColor: '#F4F7FB',
+                    scrollY: 0,
+                    windowWidth: element.scrollWidth,
+                    windowHeight: element.scrollHeight
+                });
+
+                const imgData = canvas.toDataURL('image/png');
+                const pdfW = 297; // A4 landscape mm
+                const pdfH = 210;
+                const ratio = canvas.height / canvas.width;
+                const imgH = pdfW * ratio;
+                let yPos = 0;
+                const pageH = pdfH - 10;
+
+                const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+
+                let remaining = imgH;
+                while (remaining > 0) {
+                    pdf.addImage(imgData, 'PNG', 5, yPos === 0 ? 5 : 5 - yPos, pdfW - 10, imgH);
+                    remaining -= pageH;
+                    if (remaining > 0) {
+                        pdf.addPage();
+                        yPos -= pageH;
+                    }
+                }
+
+                const now = new Date();
+                const stamp = `${now.getDate().toString().padStart(2,'0')}-${(now.getMonth()+1).toString().padStart(2,'0')}-${now.getFullYear()}`;
+                pdf.save(`Simulador_ROI_Numus_${stamp}.pdf`);
+            } catch (e) {
+                alert('Erro ao gerar PDF: ' + e.message);
+            }
+
+            btn.innerText = '⬇ Exportar PDF';
+            btn.disabled = false;
+        }
+
+        window.onload = calcularROI;
+    </script>
+</body>
+</html>
