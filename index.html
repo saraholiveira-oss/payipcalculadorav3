@@ -617,13 +617,13 @@
             const tAss   = parseFloat(document.getElementById('tAssinatura').value) || 0;
             const qAss   = titulos * (pctAss / 100);
 
-            // 1. CÁLCULO DE FLOAT TRANSPARENTE
+            // 1. CÁLCULO DE FLOAT TRANSPARENTE (Exponencial / Padrão B3)
             const selicAnual = parseFloat(document.getElementById('selicAnual').value) || 0;
             const pctCdi     = parseFloat(document.getElementById('pctCdi').value) || 0;
             const volumePrazo = qNumPrazo * ticket;
             
-            // Taxa Diária simples (252 dias úteis de mercado)
-            const taxaDiariaDecimal = selicAnual > 0 ? ((selicAnual / 100) / 252) * (pctCdi / 100) : 0;
+            // Taxa Diária Exponencial (252 dias úteis de mercado - Padrão B3)
+            const taxaDiariaDecimal = selicAnual > 0 ? Math.pow(1 + (selicAnual / 100) * (pctCdi / 100), 1 / 252) - 1 : 0;
             const ganhoFloat = isAtivo('float') ? (volumePrazo * taxaDiariaDecimal) : 0;
 
             // 2. MELHORA DE FLUXO DE CAIXA (MENSAGERIA)
