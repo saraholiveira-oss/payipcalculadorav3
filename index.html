@@ -617,14 +617,14 @@
             const tAss   = parseFloat(document.getElementById('tAssinatura').value) || 0;
             const qAss   = titulos * (pctAss / 100);
 
-            // 1. CÁLCULO DE FLOAT TRANSPARENTE (Exponencial / Padrão B3)
+            // 1. CÁLCULO DE FLOAT TRANSPARENTE (Rendimento de 1 Dia / Média Diária 1/26)
             const selicAnual = parseFloat(document.getElementById('selicAnual').value) || 0;
             const pctCdi     = parseFloat(document.getElementById('pctCdi').value) || 0;
             const volumePrazo = qNumPrazo * ticket;
             
-            // Taxa Diária Exponencial (252 dias úteis de mercado - Padrão B3)
-            const taxaDiariaDecimal = selicAnual > 0 ? Math.pow(1 + (selicAnual / 100) * (pctCdi / 100), 1 / 252) - 1 : 0;
-            const ganhoFloat = isAtivo('float') ? (volumePrazo * taxaDiariaDecimal) : 0;
+            // Fórmula enviada: (volumePrazo / 26) * taxaDiariaExponencialB3
+            const rendimentoUmDia = selicAnual > 0 ? (volumePrazo / 26) * (Math.pow(1 + (selicAnual / 100) * (pctCdi / 100), 1 / 252) - 1) : 0;
+            const ganhoFloat = isAtivo('float') ? rendimentoUmDia : 0;
 
             // 2. MELHORA DE FLUXO DE CAIXA (MENSAGERIA)
             // Aplica-se EXCLUSIVAMENTE sobre o volume de títulos a prazo
@@ -718,8 +718,9 @@
             
             if (isAtivo('float') && selicAnual > 0) {
                 const baseVolText = formatBRL(volumePrazo);
-                const tooltipFloat = `LÓGICA DO CÁLCULO:\n\nSELIC Anual: ${selicAnual}%\nAplicação: ${pctCdi}% do CDI\nVolume Antecipado: R$ ${baseVolText}\n\nO rendimento diário é aplicado exclusivamente sobre o volume antecipado.`;
-                addRow("Investimento Float Diário", tooltipFloat, 1, "Rendimento", ganhoFloat, "-", 0, 'intangivel');
+                const volDiarioText = formatBRL(volumePrazo / 26);
+                const tooltipFloat = `LÓGICA DO CÁLCULO:\n\nSELIC Anual: ${selicAnual}%\nAplicação: ${pctCdi}% do CDI\nVolume Total a Prazo: R$ ${baseVolText}\nBase Diária (1/26): R$ ${volDiarioText}\n\nCalcula o rendimento de 1 dia útil sobre a média diária (1/26 do volume total).`;
+                addRow("Investimento Float Diário", tooltipFloat, 1, "Rendimento (1 dia)", ganhoFloat, "-", 0, 'intangivel');
             }
 
             if (isAtivo('canhoto') && economiaCanhoto > 0) {
